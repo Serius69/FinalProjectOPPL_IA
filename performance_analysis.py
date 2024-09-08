@@ -148,8 +148,9 @@ def print_analysis_results(results):
     print(f"  Tendencia de producción: {trends['produccion_tendencia']:.2f} unidades/mes")
     print(f"  Tendencia de costos: {trends['costo_tendencia']:.2f} $/mes")
 
-
 if __name__ == "__main__":
     input_file = 'production_data.csv'
     results = perform_analysis(input_file)
     print_analysis_results(results)
+
+

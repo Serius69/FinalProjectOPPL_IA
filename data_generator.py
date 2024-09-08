@@ -2,11 +2,14 @@ import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
 
-
 def generate_sales_data(num_records=1000):
     # Generate random dates
-    start_date = datetime(2023, 1, 1)
-    end_date = datetime(2023, 12, 31)
+    start_date_str = "2023-01-01"  # ejemplo de formato de fecha en string
+    end_date_str = "2023-12-31"
+
+    start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
+    end_date = datetime.strptime(end_date_str, "%Y-%m-%d")
+
     dates = [start_date + timedelta(days=np.random.randint((end_date - start_date).days)) for _ in range(num_records)]
 
     # Generate product IDs and names
