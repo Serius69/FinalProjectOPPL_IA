@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Análisis de Producción{% endblock %}</title>
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'analyzer/css/style.css' %}">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <header>
+        <h1>Sistema de Análisis de Producción</h1>
+        <nav>
+            <ul>
+                <li><a href="{% url 'index' %}">Inicio</a></li>
+                <li><a href="{% url 'visualize_data' %}">Visualizaciones</a></li>
+                <li><a href="{% url 'analyze_performance' %}">Resultados</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        {% block content %}
+        {% endblock %}
+    </main>
+
+    <footer>
+        <p>&copy; 2024 Sistema de Análisis de Producción</p>
+    </footer>
+
+    <script src="{% static 'analyzer/js/main.js' %}"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

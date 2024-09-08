@@ -1,0 +1,40 @@
+{% extends "analyzer/base.html" %}
+
+{% block content %}
+<h2>Resultados del Análisis de Desempeño</h2>
+
+<h3>KPIs:</h3>
+<ul>
+    {% for kpi, value in results.kpis.items %}
+    <li>{{ kpi|title }}: {{ value|floatformat:2 }}</li>
+    {% endfor %}
+</ul>
+
+<h3>Correlaciones Principales:</h3>
+<table>
+    <tr>
+        <th>Variable 1</th>
+        <th>Variable 2</th>
+        <th>Correlación</th>
+    </tr>
+    {% for var1, correlations in results.correlaciones.items %}
+        {% for var2, value in correlations.items %}
+            {% if var1 != var2 and value > 0.5 or value < -0.5 %}
+            <tr>
+                <td>{{ var1 }}</td>
+                <td>{{ var2 }}</td>
+                <td>{{ value|floatformat:2 }}</td>
+            </tr>
+            {% endif %}
+        {% endfor %}
+    {% endfor %}
+</table>
+
+<h3>Comparación de Escenarios:</h3>
+<p>Diferencia media: {{ results.comparacion_escenarios.diferencia_media|floatformat:2 }}</p>
+<p>Valor p: {{ results.comparacion_escenarios.valor_p|floatformat:4 }}</p>
+
+<h3>Tendencias:</h3>
+<p>Tendencia de producción: {{ results.tendencias.produccion_tendencia|floatformat:2 }} unidades/mes</p>
+<p>Tendencia de costos: {{ results.tendencias.costo_tendencia|floatformat:2 }} $/mes</p>
+{% endblock %}

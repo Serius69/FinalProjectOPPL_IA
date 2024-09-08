@@ -1,10 +1,8 @@
-import os
-import pandas as pd
-from data_generator import generate_sales_data
-from etl_process import etl_process
-from efficiency_improvement import improve_efficiency
-from data_visualization import generate_visualizations
-from performance_analysis import perform_analysis, print_analysis_results
+from production_analysis.scripts.data_generator import generate_sales_data
+from production_analysis.scripts.etl_process import etl_process
+from production_analysis.scripts.efficiency_improvement import improve_efficiency
+from production_analysis.scripts.data_visualization import generate_visualizations
+from production_analysis.scripts.performance_analysis import perform_analysis, print_analysis_results
 
 def main():
     # Configuración

@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Análisis de Producción</title>
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'analyzer/css/style.css' %}">
+</head>
+<body>
+    <h1>Análisis de Producción</h1>
+    <div id="controls">
+        <button id="generateData">Generar Datos</button>
+        <button id="runETL">Ejecutar ETL</button>
+        <button id="analyzeSensitivity">Análisis de Sensibilidad</button>
+        <button id="improveEfficiency">Mejorar Eficiencia</button>
+        <button id="visualizeData">Visualizar Datos</button>
+        <button id="analyzePerformance">Analizar Desempeño</button>
+    </div>
+    <div id="results"></div>
+
+    <script src="{% static 'analyzer/js/main.js' %}"></script>
+</body>
+
+</html>
