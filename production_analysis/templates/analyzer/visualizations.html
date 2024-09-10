@@ -1,31 +1,34 @@
+{% comment %} visualizations.html {% endcomment %}
 {% extends "analyzer/base.html" %}
 
 {% block content %}
-<h2>Visualizaciones de Datos</h2>
+<div class="container">
+    <h2 class="mb-4">Visualizaciones de Datos</h2>
 
-<div class="visualization">
-    <h3>Tendencias de Producción</h3>
-    <img src="data:image/png;base64,{{ images.production_trends.png }}" alt="Tendencias de Producción">
-</div>
+    <section class="mb-4">
+        <h3>Tendencias de Producción</h3>
+        <img src="data:image/png;base64,{{ images.production_trends.png }}" alt="Tendencias de Producción" class="img-fluid">
+    </section>
 
-<div class="visualization">
-    <h3>Mapa de Calor de Eficiencia</h3>
-    <img src="data:image/png;base64,{{ images.efficiency_heatmap.png }}" alt="Mapa de Calor de Eficiencia">
-</div>
+    <section class="mb-4">
+        <h3>Mapa de Calor de Eficiencia</h3>
+        <img src="data:image/png;base64,{{ images.efficiency_heatmap.png }}" alt="Mapa de Calor de Eficiencia" class="img-fluid">
+    </section>
 
-<div class="visualization">
-    <h3>Desglose de Costos</h3>
-    <div id="costBreakdown"></div>
-</div>
+    <section class="mb-4">
+        <h3>Desglose de Costos</h3>
+        <div id="costBreakdown"></div>
+    </section>
 
-<div class="visualization">
-    <h3>Asignación Óptima de Recursos</h3>
-    <div id="resourceAllocation"></div>
+    <section class="mb-4">
+        <h3>Asignación Óptima de Recursos</h3>
+        <div id="resourceAllocation"></div>
+    </section>
 </div>
 
 <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 <script>
-    // Aquí irá el código JavaScript para renderizar los gráficos de Plotly
-    // Utilizaremos los datos pasados desde la vista
+    // Código JavaScript para renderizar gráficos interactivos de Plotly
+    // Aquí puedes renderizar los gráficos con los datos pasados desde la vista
 </script>
 {% endblock %}

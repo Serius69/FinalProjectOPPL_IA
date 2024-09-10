@@ -1,59 +1,75 @@
-# data_visualization.py
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+from myapp.models import LogisticProcess, Optimization, Outcome  # Import models from Django app
+from django_pandas.io import read_frame  # To convert QuerySet to Pandas DataFrame
 
+# Load data from the database using Django ORM
+def load_data_from_db():
+    # Query the Optimization table and prefetch related LogisticProcess and Outcome data
+    optimization_data = Optimization.objects.select_related('logistic_process').prefetch_related('outcomes').all()
+    
+    # Convert QuerySet to a DataFrame using django_pandas read_frame
+    df = read_frame(optimization_data)
+    
+    # Parse 'date' fields as datetime and handle missing data if necessary
+    df['implementation_date'] = pd.to_datetime(df['implementation_date'])
+    
+    return df
 
-def load_data(file_path):
-    return pd.read_csv(file_path, parse_dates=['date'])
-
-
-def monthly_sales_trend(df):
-    monthly_sales = df.groupby(df['date'].dt.to_period('M'))['total_sale'].sum().reset_index()
-    monthly_sales['date'] = monthly_sales['date'].dt.to_timestamp()
+# Monthly sales trend visualization (equivalent to tracking optimization over time)
+def monthly_optimization_trend(df):
+    # Group by month and sum efficiency improvement to simulate a "trend"
+    monthly_optimizations = df.groupby(df['implementation_date'].dt.to_period('M'))['efficiency_improvement'].sum().reset_index()
+    monthly_optimizations['implementation_date'] = monthly_optimizations['implementation_date'].dt.to_timestamp()
 
     plt.figure(figsize=(12, 6))
-    plt.plot(monthly_sales['date'], monthly_sales['total_sale'])
-    plt.title('Monthly Sales Trend')
+    plt.plot(monthly_optimizations['implementation_date'], monthly_optimizations['efficiency_improvement'])
+    plt.title('Monthly Optimization Efficiency Improvement Trend')
     plt.xlabel('Month')
-    plt.ylabel('Total Sales')
+    plt.ylabel('Total Efficiency Improvement (%)')
     plt.xticks(rotation=45)
     plt.tight_layout()
-    plt.savefig('monthly_sales_trend.png')
+    plt.savefig('monthly_optimization_trend.png')
     plt.close()
 
-
-def top_products_bar_chart(df):
-    top_products = df.groupby('product_name')['total_sale'].sum().sort_values(ascending=False).head(10)
+# Top logistic processes by cost reduction
+def top_processes_by_cost_reduction(df):
+    # Group by logistic process and sum total cost reduction
+    top_processes = df.groupby('logistic_process')['cost_reduction'].sum().sort_values(ascending=False).head(10)
 
     plt.figure(figsize=(12, 6))
-    sns.barplot(x=top_products.index, y=top_products.values)
-    plt.title('Top 10 Products by Total Sales')
-    plt.xlabel('Product Name')
-    plt.ylabel('Total Sales')
+    sns.barplot(x=top_processes.index, y=top_processes.values)
+    plt.title('Top 10 Processes by Cost Reduction')
+    plt.xlabel('Logistic Process')
+    plt.ylabel('Total Cost Reduction (%)')
     plt.xticks(rotation=90)
     plt.tight_layout()
-    plt.savefig('top_products_bar_chart.png')
+    plt.savefig('top_processes_by_cost_reduction.png')
     plt.close()
 
+# Distribution of outcomes (positive, neutral, negative)
+def outcome_distribution(df):
+    outcome_counts = df['outcome'].value_counts()
 
-def price_category_distribution(df):
     plt.figure(figsize=(8, 6))
-    df['price_category'].value_counts().plot(kind='pie', autopct='%1.1f%%')
-    plt.title('Distribution of Price Categories')
+    outcome_counts.plot(kind='pie', autopct='%1.1f%%')
+    plt.title('Distribution of Outcome Impact (Positive, Neutral, Negative)')
     plt.ylabel('')
     plt.tight_layout()
-    plt.savefig('price_category_distribution.png')
+    plt.savefig('outcome_distribution.png')
     plt.close()
 
-
-def generate_visualizations(input_file):
-    df = load_data(input_file)
-    monthly_sales_trend(df)
-    top_products_bar_chart(df)
-    price_category_distribution(df)
+def generate_visualizations():
+    # Load data from the database
+    df = load_data_from_db()
+    
+    # Generate the visualizations
+    monthly_optimization_trend(df)
+    top_processes_by_cost_reduction(df)
+    outcome_distribution(df)
+    
     print("Visualizations generated and saved as PNG files.")
 
-
 if __name__ == "__main__":
-    generate_visualizations('transformed_sales_data.csv')
+    generate_visualizations()

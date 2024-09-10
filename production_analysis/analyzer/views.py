@@ -17,7 +17,7 @@ def index(request):
 
 def generate_data(request):
     file_path = 'data/raw_production_data.csv'
-    data_generator.generate_production_data(file_path)
+    data_generator.generate_sales_data(file_path)
     return JsonResponse({'message': 'Datos generados exitosamente'})
 
 
@@ -30,7 +30,7 @@ def run_etl(request):
 
 def analyze_sensitivity(request):
     file_path = 'data/processed_production_data.csv'
-    results = performance_analysis.perform_sensitivity_analysis(file_path)
+    results = performance_analysis.__name__(file_path)
     return JsonResponse(results)
 
 
