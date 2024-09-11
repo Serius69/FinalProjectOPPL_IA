@@ -1,86 +1,90 @@
-# efficiency_improvement.py
 import numpy as np
 from scipy.optimize import minimize
-from analyzer.models import LogisticProcess, Optimization, ExchangeRate
+from analyzer.models import LogisticProcess, ExchangeRate, Transaction
 
 def load_data():
     """
     Carga los datos de procesos logísticos desde la base de datos.
-
+    
     Returns:
     QuerySet: Conjunto de datos de procesos logísticos.
     """
     return LogisticProcess.objects.all()
 
-def load_optimization_data(logistic_process_id):
+def load_transactions(logistic_process_id):
     """
-    Carga los datos de optimización para un proceso logístico específico.
+    Carga las transacciones asociadas a un proceso logístico específico.
 
     Args:
     logistic_process_id (int): ID del proceso logístico.
 
     Returns:
-    Optimization: Datos de optimización del proceso logístico.
+    QuerySet: Conjunto de transacciones.
     """
-    return Optimization.objects.filter(logistic_process_id=logistic_process_id).first()
+    return Transaction.objects.filter(logistic_process_id=logistic_process_id)
 
-def exchange_cost(x, optimization, exchange_rate):
+def exchange_cost(x, exchange_rate):
     """
     Calcula el costo total basado en la asignación de recursos y el tipo de cambio.
 
     Args:
     x (np.array): Array con la asignación de recursos.
-    optimization (Optimization): Datos de optimización para el proceso logístico.
     exchange_rate (ExchangeRate): Tipo de cambio actual.
 
     Returns:
     float: Costo total.
     """
-    return (1 - optimization.cost_reduction / 100) * x[0] * exchange_rate.rate
+    return x[0] * exchange_rate.rate
 
-def exchange_volume(x, optimization):
+def exchange_volume(x, efficiency_improvement):
     """
-    Calcula el volumen de intercambio basado en la asignación de recursos.
+    Calcula el volumen de intercambio basado en la asignación de recursos y el porcentaje de mejora de eficiencia.
 
     Args:
     x (np.array): Array con la asignación de recursos.
-    optimization (Optimization): Datos de optimización para el proceso logístico.
+    efficiency_improvement (float): Porcentaje de mejora de eficiencia.
 
     Returns:
     float: Volumen de intercambio total.
     """
-    return x[0] * (1 + optimization.efficiency_improvement / 100)
+    return x[0] * (1 + efficiency_improvement / 100)
 
-def optimize_exchange(logistic_process_id, budget):
+def optimize_exchange(logistic_process_id, budget, efficiency_improvement):
     """
     Optimiza la asignación de recursos para maximizar el volumen de intercambio dentro de un presupuesto.
 
     Args:
     logistic_process_id (int): ID del proceso logístico.
     budget (float): Presupuesto total disponible.
+    efficiency_improvement (float): Porcentaje de mejora de la eficiencia.
 
     Returns:
     tuple: Asignación óptima de recursos y volumen máximo de intercambio.
     """
-    optimization = load_optimization_data(logistic_process_id)
-    if not optimization:
-        raise ValueError("Optimization data not found for the given logistic process.")
-
+    # Obtener el proceso logístico
     logistic_process = LogisticProcess.objects.get(id=logistic_process_id)
+    
+    # Obtener la primera transacción asociada para obtener el tipo de cambio
+    transaction = logistic_process.transactions.first()
+    
+    if not transaction:
+        raise ValueError("No transactions found for the given logistic process.")
+
+    # Buscar el tipo de cambio para las monedas y la fecha
     exchange_rate = ExchangeRate.objects.filter(
-        from_currency=logistic_process.transactions.first().from_currency,
-        to_currency=logistic_process.transactions.first().to_currency,
-        date=logistic_process.start_date
-    ).first()
+        from_currency=transaction.from_currency,
+        to_currency=transaction.to_currency,
+        date__lte=logistic_process.start_date  # Permitir fechas anteriores o iguales
+    ).order_by('-date').first()
 
     if not exchange_rate:
-        raise ValueError("Exchange rate not found for the given currencies and date.")
+        raise ValueError(f"No exchange rate found for currencies {transaction.from_currency} to {transaction.to_currency} on or before date {logistic_process.start_date}.")
 
     def objective(x):
-        return -exchange_volume(x, optimization)
+        return -exchange_volume(x, efficiency_improvement)
 
     def constraint(x):
-        return budget - exchange_cost(x, optimization, exchange_rate)
+        return budget - exchange_cost(x, exchange_rate)
 
     x0 = [1000]  # Valor inicial
     bounds = [(0, None)]  # Límite para la variable
@@ -90,42 +94,36 @@ def optimize_exchange(logistic_process_id, budget):
 
     return result.x, -result.fun
 
-def improve_efficiency(logistic_process_id, budget):
+def improve_efficiency(logistic_process_id, budget, efficiency_improvement):
     """
     Mejora la eficiencia del proceso de cambio de divisas optimizando la asignación de recursos.
 
     Args:
     logistic_process_id (int): ID del proceso logístico.
     budget (float): Presupuesto total disponible.
+    efficiency_improvement (float): Porcentaje de mejora de la eficiencia.
 
     Returns:
     dict: Resultados de la optimización.
     """
-    optimal_allocation, max_volume = optimize_exchange(logistic_process_id, budget)
+    optimal_allocation, max_volume = optimize_exchange(logistic_process_id, budget, efficiency_improvement)
 
-    optimization = load_optimization_data(logistic_process_id)
+    # Volver a obtener la tasa de cambio para los resultados
     logistic_process = LogisticProcess.objects.get(id=logistic_process_id)
+    transaction = logistic_process.transactions.first()
     exchange_rate = ExchangeRate.objects.filter(
-        from_currency=logistic_process.transactions.first().from_currency,
-        to_currency=logistic_process.transactions.first().to_currency,
-        date=logistic_process.start_date
-    ).first()
+        from_currency=transaction.from_currency,
+        to_currency=transaction.to_currency,
+        date__lte=logistic_process.start_date
+    ).order_by('-date').first()
 
     results = {
         'optimal_resource_allocation': optimal_allocation[0],
         'max_exchange_volume': max_volume,
-        'total_cost': exchange_cost(optimal_allocation, optimization, exchange_rate),
+        'total_cost': exchange_cost(optimal_allocation, exchange_rate),
         'from_currency': exchange_rate.from_currency.code,
         'to_currency': exchange_rate.to_currency.code,
         'exchange_rate': exchange_rate.rate
     }
 
     return results
-
-if __name__ == "__main__":
-    logistic_process_id = 1  # ID del proceso logístico a optimizar
-    budget = 100000  # Ejemplo de presupuesto
-    results = improve_efficiency(logistic_process_id, budget)
-    print("Resultados de la optimización:")
-    for key, value in results.items():
-        print(f"{key}: {value}")

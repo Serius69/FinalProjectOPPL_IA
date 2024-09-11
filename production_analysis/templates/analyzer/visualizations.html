@@ -1,34 +1,34 @@
-{% comment %} visualizations.html {% endcomment %}
 {% extends "analyzer/base.html" %}
-
+{% load static %} 
 {% block content %}
 <div class="container">
     <h2 class="mb-4">Visualizaciones de Datos</h2>
 
     <section class="mb-4">
-        <h3>Tendencias de Producción</h3>
-        <img src="data:image/png;base64,{{ images.production_trends.png }}" alt="Tendencias de Producción" class="img-fluid">
+        <h3>Tendencias de Volumen de Cambio</h3>
+        {% comment %} <img src="data:image/png;base64,{{ images.exchange_volume_trends.png }}" alt="Tendencias de Volumen de Cambio" class="img-fluid"> {% endcomment %}
+        <img src="{% static 'analyzer/images/exchange_volume_trends.png'%}" alt="Tendencias de Volumen de Cambio" class="img-fluid">
     </section>
 
     <section class="mb-4">
         <h3>Mapa de Calor de Eficiencia</h3>
-        <img src="data:image/png;base64,{{ images.efficiency_heatmap.png }}" alt="Mapa de Calor de Eficiencia" class="img-fluid">
+        <img src="{% static 'analyzer/images/efficiency_heatmap.png'%}" alt="Tendencias de Volumen de Cambio" class="img-fluid">
     </section>
 
     <section class="mb-4">
         <h3>Desglose de Costos</h3>
-        <div id="costBreakdown"></div>
+        <img src="{% static 'analyzer/images/cost_breakdown.png'%}" alt="Desglose de Costos" class="img-fluid">
     </section>
 
     <section class="mb-4">
         <h3>Asignación Óptima de Recursos</h3>
-        <div id="resourceAllocation"></div>
+        <img src="{% static 'analyzer/images/resource_allocation.png'%}" alt="Asignación Óptima de Recursos" class="img-fluid">
     </section>
 </div>
 
-<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+{% comment %} <script src="https://cdn.plot.ly/plotly-latest.min.js"></script> {% endcomment %}
 <script>
-    // Código JavaScript para renderizar gráficos interactivos de Plotly
-    // Aquí puedes renderizar los gráficos con los datos pasados desde la vista
+    // Aquí puedes renderizar gráficos interactivos de Plotly si es necesario
+    // Puedes usar los datos proporcionados desde la vista para renderizar gráficos interactivos
 </script>
 {% endblock %}

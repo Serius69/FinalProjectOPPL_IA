@@ -26,12 +26,6 @@ def create_currency_exchange_house():
 def create_currencies():
     currencies = [
         ('USD', 'United States Dollar'),
-        ('EUR', 'Euro'),
-        ('GBP', 'British Pound Sterling'),
-        ('JPY', 'Japanese Yen'),
-        ('CHF', 'Swiss Franc'),
-        ('AUD', 'Australian Dollar'),
-        ('CAD', 'Canadian Dollar'),
     ]
     for code, name in currencies:
         Currency.objects.create(code=code, name=name)

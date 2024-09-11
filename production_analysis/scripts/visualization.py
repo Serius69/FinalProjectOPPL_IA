@@ -1,122 +1,103 @@
-# visualization.py
+import os
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-import plotly.express as px
-import plotly.graph_objects as go
-from analyzer.models import LogisticProcess, Transaction, ExchangeRate, Optimization
+from analyzer.models import LogisticProcess, Transaction, Optimization
 
 def load_data():
     """
-    Carga los datos de procesos logísticos y transacciones desde la base de datos.
+    Load logistic processes and transactions data from the database.
 
     Returns:
-    pd.DataFrame: DataFrame con los datos de procesos logísticos y transacciones.
+    pd.DataFrame: DataFrame with logistic processes and transactions data.
     """
-    logistic_processes = LogisticProcess.objects.all().values(
+    logistic_processes = pd.DataFrame(LogisticProcess.objects.all().values(
         'id', 'currency_exchange_house__name', 'process_type__name', 'start_date', 'end_date', 'status'
-    )
-    transactions = Transaction.objects.all().values(
+    ))
+    transactions = pd.DataFrame(Transaction.objects.all().values(
         'logistic_process_id', 'date', 'from_currency__code', 'to_currency__code', 'amount', 'exchange_rate__rate'
-    )
-    optimizations = Optimization.objects.all().values(
+    ))
+    optimizations = pd.DataFrame(Optimization.objects.all().values(
         'logistic_process_id', 'efficiency_improvement', 'cost_reduction', 'processing_time_reduction'
-    )
-    
-    df_processes = pd.DataFrame(list(logistic_processes))
-    df_transactions = pd.DataFrame(list(transactions))
-    df_optimizations = pd.DataFrame(list(optimizations))
+    ))
     
     # Merge the dataframes
-    df = pd.merge(df_processes, df_transactions, left_on='id', right_on='logistic_process_id')
-    df = pd.merge(df, df_optimizations, left_on='id', right_on='logistic_process_id')
+    df = (logistic_processes
+          .merge(transactions, left_on='id', right_on='logistic_process_id')
+          .merge(optimizations, left_on='id', right_on='logistic_process_id'))
     
     return df
 
-def plot_exchange_volume_trends(data):
+def create_plot(data, plot_type, x, y, title, xlabel, ylabel, filename, output_dir, **kwargs):
     """
-    Crea un gráfico de líneas para mostrar las tendencias de volumen de cambio a lo largo del tiempo.
+    Generic function to create and save plots.
 
     Args:
-    data (pd.DataFrame): DataFrame con los datos de procesos y transacciones.
+    data (pd.DataFrame): Data to plot
+    plot_type (str): Type of plot ('line', 'bar', 'heatmap', 'scatter')
+    x (str): Column name for x-axis
+    y (str): Column name for y-axis
+    title (str): Plot title
+    xlabel (str): X-axis label
+    ylabel (str): Y-axis label
+    filename (str): Output filename
+    output_dir (str): Directory to save the plot
+    **kwargs: Additional arguments for specific plot types
     """
-    daily_volume = data.groupby('date')['amount'].sum().reset_index()
-    
     plt.figure(figsize=(12, 6))
-    sns.lineplot(x='date', y='amount', data=daily_volume)
-    plt.title('Tendencias de Volumen de Cambio a lo Largo del Tiempo')
-    plt.xlabel('Fecha')
-    plt.ylabel('Volumen de Cambio')
+    
+    if plot_type == 'line':
+        sns.lineplot(x=x, y=y, data=data)
+    elif plot_type == 'bar':
+        sns.barplot(x=x, y=y, data=data)
+    elif plot_type == 'heatmap':
+        pivot_data = data.pivot_table(values=y, index=kwargs.get('index'), columns=kwargs.get('columns'), aggfunc='mean')
+        sns.heatmap(pivot_data, annot=True, cmap='YlGnBu', fmt='.2f')
+    elif plot_type == 'scatter':
+        sns.scatterplot(x=x, y=y, data=data)
+    
+    plt.title(title)
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
     plt.xticks(rotation=45)
     plt.tight_layout()
-    plt.savefig('exchange_volume_trends.png')
+    plt.savefig(os.path.join(output_dir, filename))
     plt.close()
-
-def plot_currency_distribution(data):
-    """
-    Crea un gráfico de torta interactivo para mostrar la distribución de monedas cambiadas.
-
-    Args:
-    data (pd.DataFrame): DataFrame con los datos de procesos y transacciones.
-
-    Returns:
-    plotly.graph_objs._figure.Figure: Figura de Plotly con el gráfico de torta.
-    """
-    currency_distribution = data.groupby('from_currency__code')['amount'].sum()
-    fig = px.pie(values=currency_distribution.values, names=currency_distribution.index, title='Distribución de Monedas Cambiadas')
-    return fig
-
-def plot_efficiency_heatmap(data):
-    """
-    Crea un mapa de calor para visualizar la eficiencia de los procesos de cambio.
-
-    Args:
-    data (pd.DataFrame): DataFrame con los datos de procesos y transacciones.
-    """
-    pivot_data = data.pivot_table(values='efficiency_improvement', index='process_type__name', columns='currency_exchange_house__name', aggfunc='mean')
-    plt.figure(figsize=(10, 8))
-    sns.heatmap(pivot_data, annot=True, cmap='YlGnBu', fmt='.2f')
-    plt.title('Mapa de Calor de Eficiencia de Procesos de Cambio')
-    plt.xlabel('Casa de Cambio')
-    plt.ylabel('Tipo de Proceso')
-    plt.tight_layout()
-    plt.savefig('efficiency_heatmap.png')
-    plt.close()
-
-def plot_optimization_results(data):
-    """
-    Crea un gráfico de barras para mostrar los resultados de optimización.
-
-    Args:
-    data (pd.DataFrame): DataFrame con los datos de procesos y optimizaciones.
-
-    Returns:
-    plotly.graph_objs._figure.Figure: Figura de Plotly con el gráfico de barras.
-    """
-    avg_improvements = data[['efficiency_improvement', 'cost_reduction', 'processing_time_reduction']].mean()
-    
-    fig = go.Figure(data=[go.Bar(x=avg_improvements.index, y=avg_improvements.values)])
-    fig.update_layout(title='Resultados Promedio de Optimización',
-                      xaxis_title='Métrica',
-                      yaxis_title='Porcentaje de Mejora')
-    return fig
 
 def generate_visualizations():
     """
-    Genera todas las visualizaciones para el análisis de procesos de cambio de divisas.
+    Generate all visualizations for the currency exchange process analysis.
     """
     data = load_data()
 
-    plot_exchange_volume_trends(data)
-    currency_distribution_fig = plot_currency_distribution(data)
-    currency_distribution_fig.write_html("currency_distribution.html")
+    # Ensure the output directory exists
+    output_dir = 'static/analyzer/images'
+    os.makedirs(output_dir, exist_ok=True)
 
-    plot_efficiency_heatmap(data)
+    # Exchange Volume Trends
+    daily_volume = data.groupby('date')['amount'].sum().reset_index()
+    create_plot(daily_volume, 'line', 'date', 'amount', 
+                'Exchange Volume Trends Over Time', 'Date', 'Exchange Volume', 
+                'exchange_volume_trends.png', output_dir)
 
-    optimization_results_fig = plot_optimization_results(data)
-    optimization_results_fig.write_html("optimization_results.html")
+    # Efficiency Heatmap
+    create_plot(data, 'heatmap', None, 'efficiency_improvement', 
+                'Heatmap of Exchange Process Efficiency', 'Exchange House', 'Process Type', 
+                'efficiency_heatmap.png', output_dir, 
+                index='process_type__name', columns='currency_exchange_house__name')
 
-    print("Visualizaciones generadas y guardadas.")
+    # Cost Breakdown
+    cost_breakdown = data.groupby('currency_exchange_house__name')['amount'].sum().reset_index()
+    create_plot(cost_breakdown, 'bar', 'currency_exchange_house__name', 'amount', 
+                'Cost Breakdown', 'Exchange House', 'Total Cost', 
+                'cost_breakdown.png', output_dir)
+
+    # Resource Allocation
+    create_plot(data, 'scatter', 'efficiency_improvement', 'cost_reduction', 
+                'Optimal Resource Allocation', 'Efficiency Improvement', 'Cost Reduction', 
+                'resource_allocation.png', output_dir)
+
+    print("Visualizations generated and saved.")
 
 if __name__ == "__main__":
     generate_visualizations()
