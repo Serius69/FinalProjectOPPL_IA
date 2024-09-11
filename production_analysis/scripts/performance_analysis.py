@@ -1,119 +1,127 @@
 # performance_analysis.py
-
 import pandas as pd
 import numpy as np
 from scipy import stats
+from analyzer.models import LogisticProcess, Transaction, ExchangeRate, Optimization
 
-
-def load_data(file_path):
+def load_data():
     """
-    Carga los datos de producción desde un archivo CSV.
-
-    Args:
-    file_path (str): Ruta al archivo CSV con los datos de producción.
+    Carga los datos de procesos logísticos y transacciones desde la base de datos.
 
     Returns:
-    pd.DataFrame: DataFrame con los datos de producción.
+    pd.DataFrame: DataFrame con los datos de procesos logísticos y transacciones.
     """
-    return pd.read_csv(file_path)
-
+    logistic_processes = LogisticProcess.objects.all().values(
+        'id', 'currency_exchange_house__name', 'process_type__name', 'start_date', 'end_date', 'status'
+    )
+    transactions = Transaction.objects.all().values(
+        'logistic_process_id', 'date', 'from_currency__code', 'to_currency__code', 'amount', 'exchange_rate__rate'
+    )
+    optimizations = Optimization.objects.all().values(
+        'logistic_process_id', 'efficiency_improvement', 'cost_reduction', 'processing_time_reduction'
+    )
+    
+    df_processes = pd.DataFrame(list(logistic_processes))
+    df_transactions = pd.DataFrame(list(transactions))
+    df_optimizations = pd.DataFrame(list(optimizations))
+    
+    # Merge the dataframes
+    df = pd.merge(df_processes, df_transactions, left_on='id', right_on='logistic_process_id')
+    df = pd.merge(df, df_optimizations, left_on='id', right_on='logistic_process_id')
+    
+    return df
 
 def calculate_kpis(data):
     """
-    Calcula los KPIs clave para el análisis de desempeño de producción.
+    Calcula los KPIs clave para el análisis de desempeño de procesos de cambio de divisas.
 
     Args:
-    data (pd.DataFrame): DataFrame con los datos de producción.
+    data (pd.DataFrame): DataFrame con los datos de procesos y transacciones.
 
     Returns:
     dict: Diccionario con los KPIs calculados.
     """
     kpis = {
-        'produccion_promedio': data['production'].mean(),
-        'costo_total_promedio': data[['labor_cost', 'material_cost', 'overhead_cost']].sum(axis=1).mean(),
-        'eficiencia_promedio': data['efficiency'].mean(),
-        'tiempo_produccion_promedio': data['production_time'].mean(),
-        'desperdicio_material_promedio': data['material_waste'].mean(),
+        'volumen_promedio_diario': data.groupby('date')['amount'].sum().mean(),
+        'tasa_cambio_promedio': data['exchange_rate__rate'].mean(),
+        'eficiencia_promedio': data['efficiency_improvement'].mean(),
+        'reduccion_costos_promedio': data['cost_reduction'].mean(),
+        'reduccion_tiempo_promedio': data['processing_time_reduction'].mean(),
     }
     return kpis
 
-
 def analyze_correlations(data):
     """
-    Analiza las correlaciones entre las variables clave de producción.
+    Analiza las correlaciones entre las variables clave de procesos de cambio de divisas.
 
     Args:
-    data (pd.DataFrame): DataFrame con los datos de producción.
+    data (pd.DataFrame): DataFrame con los datos de procesos y transacciones.
 
     Returns:
     pd.DataFrame: Matriz de correlación.
     """
-    variables = ['production', 'labor_cost', 'material_cost', 'overhead_cost', 'efficiency', 'production_time',
-                 'material_waste']
+    variables = ['amount', 'exchange_rate__rate', 'efficiency_improvement', 'cost_reduction', 'processing_time_reduction']
     return data[variables].corr()
 
-
-def compare_scenarios(data, scenario1, scenario2):
+def compare_currencies(data, currency1, currency2):
     """
-    Compara dos escenarios de producción utilizando una prueba t.
+    Compara el volumen de transacciones entre dos monedas utilizando una prueba t.
 
     Args:
-    data (pd.DataFrame): DataFrame con los datos de producción.
-    scenario1 (str): Nombre de la columna para el escenario 1.
-    scenario2 (str): Nombre de la columna para el escenario 2.
+    data (pd.DataFrame): DataFrame con los datos de procesos y transacciones.
+    currency1 (str): Código de la primera moneda.
+    currency2 (str): Código de la segunda moneda.
 
     Returns:
     dict: Resultados de la comparación, incluyendo estadísticas y valor p.
     """
-    t_stat, p_value = stats.ttest_ind(data[scenario1], data[scenario2])
+    currency1_data = data[data['from_currency__code'] == currency1]['amount']
+    currency2_data = data[data['from_currency__code'] == currency2]['amount']
+    
+    t_stat, p_value = stats.ttest_ind(currency1_data, currency2_data)
     return {
-        'escenario1_media': data[scenario1].mean(),
-        'escenario2_media': data[scenario2].mean(),
-        'diferencia_media': data[scenario1].mean() - data[scenario2].mean(),
+        'moneda1_volumen_medio': currency1_data.mean(),
+        'moneda2_volumen_medio': currency2_data.mean(),
+        'diferencia_media': currency1_data.mean() - currency2_data.mean(),
         'estadistica_t': t_stat,
         'valor_p': p_value
     }
 
-
 def analyze_trends(data):
     """
-    Analiza las tendencias en la producción y costos a lo largo del tiempo.
+    Analiza las tendencias en el volumen de transacciones y tasas de cambio a lo largo del tiempo.
 
     Args:
-    data (pd.DataFrame): DataFrame con los datos de producción.
+    data (pd.DataFrame): DataFrame con los datos de procesos y transacciones.
 
     Returns:
     dict: Resultados del análisis de tendencias.
     """
     data['date'] = pd.to_datetime(data['date'])
-    monthly_production = data.groupby(data['date'].dt.to_period('M'))['production'].mean()
-    monthly_costs = data.groupby(data['date'].dt.to_period('M'))[['labor_cost', 'material_cost', 'overhead_cost']].sum()
+    daily_volume = data.groupby(data['date'].dt.to_period('D'))['amount'].sum()
+    daily_rate = data.groupby(data['date'].dt.to_period('D'))['exchange_rate__rate'].mean()
 
-    production_trend = np.polyfit(range(len(monthly_production)), monthly_production, 1)
-    cost_trend = np.polyfit(range(len(monthly_costs)), monthly_costs.sum(axis=1), 1)
+    volume_trend = np.polyfit(range(len(daily_volume)), daily_volume, 1)
+    rate_trend = np.polyfit(range(len(daily_rate)), daily_rate, 1)
 
     return {
-        'produccion_tendencia': production_trend[0],
-        'costo_tendencia': cost_trend[0]
+        'volumen_tendencia': volume_trend[0],
+        'tasa_cambio_tendencia': rate_trend[0]
     }
 
-
-def perform_analysis(input_file):
+def perform_analysis():
     """
-    Realiza un análisis completo de desempeño de la producción.
-
-    Args:
-    input_file (str): Ruta al archivo CSV con los datos de producción.
+    Realiza un análisis completo de desempeño de procesos de cambio de divisas.
 
     Returns:
     dict: Resultados completos del análisis de desempeño.
     """
-    data = load_data(input_file)
+    data = load_data()
 
     results = {
         'kpis': calculate_kpis(data),
         'correlaciones': analyze_correlations(data),
-        'comparacion_escenarios': compare_scenarios(data, 'production_scenario1', 'production_scenario2'),
+        'comparacion_monedas': compare_currencies(data, 'USD', 'EUR'),  # Ejemplo con USD y EUR
         'tendencias': analyze_trends(data)
     }
 
@@ -126,8 +134,8 @@ def print_analysis_results(results):
     Args:
     results (dict): Resultados del análisis de desempeño.
     """
-    print("Análisis de Desempeño de Producción")
-    print("===================================")
+    print("Análisis de Desempeño de Procesos de Cambio de Divisas")
+    print("=====================================================")
 
     print("\nKPIs:")
     for kpi, value in results['kpis'].items():
@@ -140,19 +148,16 @@ def print_analysis_results(results):
             if var1 != var2 and abs(corr_matrix.loc[var1, var2]) > 0.5:
                 print(f"  {var1} vs {var2}: {corr_matrix.loc[var1, var2]:.2f}")
 
-    print("\nComparación de Escenarios:")
-    scenario_comp = results['comparacion_escenarios']
-    print(f"  Diferencia media: {scenario_comp['diferencia_media']:.2f}")
-    print(f"  Valor p: {scenario_comp['valor_p']:.4f}")
+    print("\nComparación de Monedas (USD vs EUR):")
+    currency_comp = results['comparacion_monedas']
+    print(f"  Diferencia media en volumen: {currency_comp['diferencia_media']:.2f}")
+    print(f"  Valor p: {currency_comp['valor_p']:.4f}")
 
     print("\nTendencias:")
     trends = results['tendencias']
-    print(f"  Tendencia de producción: {trends['produccion_tendencia']:.2f} unidades/mes")
-    print(f"  Tendencia de costos: {trends['costo_tendencia']:.2f} $/mes")
+    print(f"  Tendencia de volumen diario: {trends['volumen_tendencia']:.2f} unidades/día")
+    print(f"  Tendencia de tasa de cambio: {trends['tasa_cambio_tendencia']:.4f} unidades/día")
 
 if __name__ == "__main__":
-    input_file = 'production_data.csv'
-    results = perform_analysis(input_file)
+    results = perform_analysis()
     print_analysis_results(results)
-
-

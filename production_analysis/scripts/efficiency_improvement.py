@@ -1,108 +1,131 @@
 # efficiency_improvement.py
-import pandas as pd
 import numpy as np
 from scipy.optimize import minimize
+from analyzer.models import LogisticProcess, Optimization, ExchangeRate
 
-
-def load_data(file_path):
+def load_data():
     """
-    Carga los datos de producción desde un archivo CSV.
-
-    Args:
-    file_path (str): Ruta al archivo CSV con los datos de producción.
+    Carga los datos de procesos logísticos desde la base de datos.
 
     Returns:
-    pd.DataFrame: DataFrame con los datos de producción.
+    QuerySet: Conjunto de datos de procesos logísticos.
     """
-    return pd.read_csv(file_path)
+    return LogisticProcess.objects.all()
 
-
-def production_cost(x, data):
+def load_optimization_data(logistic_process_id):
     """
-    Calcula el costo total de producción basado en la asignación de recursos.
+    Carga los datos de optimización para un proceso logístico específico.
+
+    Args:
+    logistic_process_id (int): ID del proceso logístico.
+
+    Returns:
+    Optimization: Datos de optimización del proceso logístico.
+    """
+    return Optimization.objects.filter(logistic_process_id=logistic_process_id).first()
+
+def exchange_cost(x, optimization, exchange_rate):
+    """
+    Calcula el costo total basado en la asignación de recursos y el tipo de cambio.
 
     Args:
     x (np.array): Array con la asignación de recursos.
-    data (pd.DataFrame): DataFrame con los datos de producción.
+    optimization (Optimization): Datos de optimización para el proceso logístico.
+    exchange_rate (ExchangeRate): Tipo de cambio actual.
 
     Returns:
-    float: Costo total de producción.
+    float: Costo total.
     """
-    labor_cost = x[0] * data['labor_rate'].mean()
-    material_cost = x[1] * data['material_cost'].mean()
-    overhead_cost = x[2] * data['overhead_rate'].mean()
-    return labor_cost + material_cost + overhead_cost
+    return (1 - optimization.cost_reduction / 100) * x[0] * exchange_rate.rate
 
-
-def production_output(x, data):
+def exchange_volume(x, optimization):
     """
-    Calcula la producción total basada en la asignación de recursos.
+    Calcula el volumen de intercambio basado en la asignación de recursos.
 
     Args:
     x (np.array): Array con la asignación de recursos.
-    data (pd.DataFrame): DataFrame con los datos de producción.
+    optimization (Optimization): Datos de optimización para el proceso logístico.
 
     Returns:
-    float: Producción total.
+    float: Volumen de intercambio total.
     """
-    return x[0] * data['labor_productivity'].mean() + x[1] * data['material_efficiency'].mean()
+    return x[0] * (1 + optimization.efficiency_improvement / 100)
 
-
-def optimize_production(data, budget):
+def optimize_exchange(logistic_process_id, budget):
     """
-    Optimiza la asignación de recursos para maximizar la producción dentro de un presupuesto.
+    Optimiza la asignación de recursos para maximizar el volumen de intercambio dentro de un presupuesto.
 
     Args:
-    data (pd.DataFrame): DataFrame con los datos de producción.
+    logistic_process_id (int): ID del proceso logístico.
     budget (float): Presupuesto total disponible.
 
     Returns:
-    tuple: Asignación óptima de recursos y producción máxima.
+    tuple: Asignación óptima de recursos y volumen máximo de intercambio.
     """
+    optimization = load_optimization_data(logistic_process_id)
+    if not optimization:
+        raise ValueError("Optimization data not found for the given logistic process.")
+
+    logistic_process = LogisticProcess.objects.get(id=logistic_process_id)
+    exchange_rate = ExchangeRate.objects.filter(
+        from_currency=logistic_process.transactions.first().from_currency,
+        to_currency=logistic_process.transactions.first().to_currency,
+        date=logistic_process.start_date
+    ).first()
+
+    if not exchange_rate:
+        raise ValueError("Exchange rate not found for the given currencies and date.")
 
     def objective(x):
-        return -production_output(x, data)
+        return -exchange_volume(x, optimization)
 
     def constraint(x):
-        return budget - production_cost(x, data)
+        return budget - exchange_cost(x, optimization, exchange_rate)
 
-    x0 = [100, 100, 100]  # Valores iniciales
-    bounds = [(0, None), (0, None), (0, None)]  # Límites para cada variable
+    x0 = [1000]  # Valor inicial
+    bounds = [(0, None)]  # Límite para la variable
     cons = {'type': 'ineq', 'fun': constraint}
 
     result = minimize(objective, x0, method='SLSQP', bounds=bounds, constraints=cons)
 
     return result.x, -result.fun
 
-
-def improve_efficiency(input_file, budget):
+def improve_efficiency(logistic_process_id, budget):
     """
-    Mejora la eficiencia de producción optimizando la asignación de recursos.
+    Mejora la eficiencia del proceso de cambio de divisas optimizando la asignación de recursos.
 
     Args:
-    input_file (str): Ruta al archivo CSV con los datos de producción.
+    logistic_process_id (int): ID del proceso logístico.
     budget (float): Presupuesto total disponible.
 
     Returns:
     dict: Resultados de la optimización.
     """
-    data = load_data(input_file)
-    optimal_allocation, max_production = optimize_production(data, budget)
+    optimal_allocation, max_volume = optimize_exchange(logistic_process_id, budget)
+
+    optimization = load_optimization_data(logistic_process_id)
+    logistic_process = LogisticProcess.objects.get(id=logistic_process_id)
+    exchange_rate = ExchangeRate.objects.filter(
+        from_currency=logistic_process.transactions.first().from_currency,
+        to_currency=logistic_process.transactions.first().to_currency,
+        date=logistic_process.start_date
+    ).first()
 
     results = {
-        'optimal_labor': optimal_allocation[0],
-        'optimal_material': optimal_allocation[1],
-        'optimal_overhead': optimal_allocation[2],
-        'max_production': max_production,
-        'total_cost': production_cost(optimal_allocation, data)
+        'optimal_resource_allocation': optimal_allocation[0],
+        'max_exchange_volume': max_volume,
+        'total_cost': exchange_cost(optimal_allocation, optimization, exchange_rate),
+        'from_currency': exchange_rate.from_currency.code,
+        'to_currency': exchange_rate.to_currency.code,
+        'exchange_rate': exchange_rate.rate
     }
 
     return results
 
 if __name__ == "__main__":
-    input_file = 'production_data.csv'
+    logistic_process_id = 1  # ID del proceso logístico a optimizar
     budget = 100000  # Ejemplo de presupuesto
-    results = improve_efficiency(input_file, budget)
+    results = improve_efficiency(logistic_process_id, budget)
     print("Resultados de la optimización:")
     for key, value in results.items():
-        print(f"{key}: {value:.2f}")
+        print(f"{key}: {value}")
