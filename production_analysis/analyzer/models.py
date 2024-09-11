@@ -1,5 +1,5 @@
-# models.py
 from django.db import models
+from django.core.exceptions import ValidationError
 
 class CurrencyExchangeHouse(models.Model):
     name = models.CharField(max_length=100)
@@ -10,12 +10,14 @@ class CurrencyExchangeHouse(models.Model):
     def __str__(self):
         return self.name
 
+
 class Currency(models.Model):
     code = models.CharField(max_length=3, unique=True)
     name = models.CharField(max_length=50)
 
     def __str__(self):
         return f"{self.code} - {self.name}"
+
 
 class ExchangeRate(models.Model):
     from_currency = models.ForeignKey(Currency, on_delete=models.CASCADE, related_name='from_rates')
@@ -24,10 +26,13 @@ class ExchangeRate(models.Model):
     date = models.DateField()
 
     class Meta:
-        unique_together = ('from_currency', 'to_currency', 'date')
+        constraints = [
+            models.UniqueConstraint(fields=['from_currency', 'to_currency', 'date'], name='unique_exchange_rate')
+        ]
 
     def __str__(self):
         return f"{self.from_currency.code}/{self.to_currency.code} - {self.rate} ({self.date})"
+
 
 class ProcessType(models.Model):
     name = models.CharField(max_length=100)
@@ -36,15 +41,28 @@ class ProcessType(models.Model):
     def __str__(self):
         return self.name
 
+
 class LogisticProcess(models.Model):
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('in_progress', 'In Progress'),
+        ('completed', 'Completed'),
+    ]
+
     currency_exchange_house = models.ForeignKey(CurrencyExchangeHouse, on_delete=models.CASCADE, related_name='processes')
     process_type = models.ForeignKey(ProcessType, on_delete=models.CASCADE)
     start_date = models.DateField()
     end_date = models.DateField(null=True, blank=True)
-    status = models.CharField(max_length=50, choices=[('pending', 'Pending'), ('in_progress', 'In Progress'), ('completed', 'Completed')])
+    status = models.CharField(max_length=50, choices=STATUS_CHOICES)
 
     def __str__(self):
         return f"{self.process_type.name} - {self.currency_exchange_house.name}"
+
+    def clean(self):
+        # Validación de fechas: la fecha de fin no puede ser anterior a la de inicio
+        if self.end_date and self.end_date < self.start_date:
+            raise ValidationError('End date cannot be earlier than start date.')
+
 
 class Transaction(models.Model):
     logistic_process = models.ForeignKey(LogisticProcess, on_delete=models.CASCADE, related_name='transactions')
@@ -57,6 +75,7 @@ class Transaction(models.Model):
     def __str__(self):
         return f"{self.from_currency.code} to {self.to_currency.code} - {self.amount} ({self.date})"
 
+
 class Optimization(models.Model):
     logistic_process = models.ForeignKey(LogisticProcess, on_delete=models.CASCADE, related_name='optimizations')
     efficiency_improvement = models.FloatField(help_text="Percentage of improvement in operational efficiency")
@@ -68,15 +87,23 @@ class Optimization(models.Model):
     def __str__(self):
         return f"Optimization of {self.logistic_process.process_type.name}"
 
+
 class Outcome(models.Model):
+    IMPACT_CHOICES = [
+        ('positive', 'Positive'),
+        ('neutral', 'Neutral'),
+        ('negative', 'Negative'),
+    ]
+
     optimization = models.ForeignKey(Optimization, on_delete=models.CASCADE, related_name='outcomes')
     description = models.TextField()
-    impact = models.CharField(max_length=50, choices=[('positive', 'Positive'), ('neutral', 'Neutral'), ('negative', 'Negative')])
+    impact = models.CharField(max_length=50, choices=IMPACT_CHOICES)
     date = models.DateField()
     observations = models.TextField(null=True, blank=True)
 
     def __str__(self):
         return f"Outcome of {self.optimization.logistic_process.process_type.name}"
+
 
 class Report(models.Model):
     logistic_process = models.ForeignKey(LogisticProcess, on_delete=models.CASCADE, related_name='reports')
@@ -87,6 +114,7 @@ class Report(models.Model):
 
     def __str__(self):
         return f"Report {self.logistic_process.process_type.name} - {self.date}"
+
 
 class GenerativeAI(models.Model):
     name = models.CharField(max_length=100)

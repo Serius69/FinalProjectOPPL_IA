@@ -1,4 +1,4 @@
-#etl_process.py
+#etl_process
 import pandas as pd
 from analyzer.models import LogisticProcess, CurrencyExchangeHouse, ProcessType, Transaction, ExchangeRate
 from django.core.exceptions import ObjectDoesNotExist
@@ -20,13 +20,17 @@ def extract_data():
         return pd.DataFrame(), pd.DataFrame()
 
 def transform_data(df_processes, df_transactions):
-    df_processes['start_date'] = pd.to_datetime(df_processes['start_date'])
+    # Convertir fechas a datetime con 'coerce' para manejar fechas inválidas
+    df_processes['start_date'] = pd.to_datetime(df_processes['start_date'], errors='coerce')
     df_processes['end_date'] = pd.to_datetime(df_processes['end_date'], errors='coerce')
 
-    df_processes['duration'] = (df_processes['end_date'] - df_processes['start_date']).dt.days.fillna(-1)
-
-    df_transactions['date'] = pd.to_datetime(df_transactions['date'])
+    # Eliminar filas con fechas NaT o aplicar un valor predeterminado
+    df_processes['duration'] = (df_processes['end_date'] - df_processes['start_date']).dt.days
+    df_processes['duration'] = df_processes['duration'].fillna(-1)  # Rellenar NaT con un valor predeterminado
     
+    # Convertir la fecha de transacciones también
+    df_transactions['date'] = pd.to_datetime(df_transactions['date'], errors='coerce')
+
     # Agregar métricas de transacciones a los procesos
     transaction_metrics = df_transactions.groupby('logistic_process_id').agg({
         'amount': ['sum', 'count'],
@@ -34,8 +38,10 @@ def transform_data(df_processes, df_transactions):
     })
     transaction_metrics.columns = ['total_amount', 'transaction_count', 'avg_exchange_rate']
     
+    # Unir las métricas de transacciones con los procesos
     df_processes = df_processes.merge(transaction_metrics, left_on='id', right_index=True, how='left')
 
+    # Eliminar duplicados
     df_processes = df_processes.drop_duplicates()
 
     return df_processes, df_transactions

@@ -1,4 +1,3 @@
-{% comment %} base.html {% endcomment %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -17,9 +16,9 @@
                 <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                     <li class="nav-item"><a class="nav-link" href="{% url 'index' %}">Inicio</a></li>
                     <li class="nav-item"><a class="nav-link" href="{% url 'generate_data' %}">Generar Datos</a></li>
-                    <li class="nav-item"><a class="nav-link" href="{% url 'improve_efficiency' %}">Mejorar Eficiencia</a></li>
+                    {% comment %} <li class="nav-item"><a class="nav-link" href="{% url 'improve_efficiency' %}">Mejorar Eficiencia</a></li> {% endcomment %}
                     <li class="nav-item"><a class="nav-link" href="{% url 'visualize_data' %}">Visualizaciones</a></li>
-                    <li class="nav-item"><a class="nav-link" href="{% url 'analyze_performance' %}">Resultados</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{% url 'analyze_performance' %}">Analizar desempenio</a></li>
                 </ul>
             </div>
         </nav>

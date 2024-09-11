@@ -1,4 +1,4 @@
-#base.html
+
 {% extends "analyzer/base.html" %}
 
 {% block content %}
@@ -6,8 +6,8 @@
     <h2 class="mb-4">Panel de Control - Tromay</h2>
     <div class="d-grid gap-2 d-md-block">
         <a class="btn btn-primary" href="{% url 'generate_data' %}" role="button">Generar Datos</a>
-        <a class="btn btn-secondary" href="{% url 'run_etl' %}" role="button">Ejecutar ETL</a>
-        <a class="btn btn-success" href="{% url 'improve_efficiency' %}" role="button">Mejorar Eficiencia</a>
+        {% comment %} <a class="btn btn-secondary" href="{% url 'run_etl' %}" role="button">Ejecutar ETL</a> {% endcomment %}
+        {% comment %} <a class="btn btn-success" href="{% url 'improve_efficiency' %}" role="button">Mejorar Eficiencia</a> {% endcomment %}
         <a class="btn btn-warning" href="{% url 'visualize_data' %}" role="button">Visualizar Datos</a>
         <a class="btn btn-danger" href="{% url 'analyze_performance' %}" role="button">Analizar Desempeño</a>
     </div>

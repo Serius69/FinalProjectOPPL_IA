@@ -5,12 +5,6 @@ from scipy import stats
 from analyzer.models import LogisticProcess, Transaction, ExchangeRate, Optimization
 
 def load_data():
-    """
-    Carga los datos de procesos logísticos y transacciones desde la base de datos.
-
-    Returns:
-    pd.DataFrame: DataFrame con los datos de procesos logísticos y transacciones.
-    """
     logistic_processes = LogisticProcess.objects.all().values(
         'id', 'currency_exchange_house__name', 'process_type__name', 'start_date', 'end_date', 'status'
     )
@@ -20,15 +14,22 @@ def load_data():
     optimizations = Optimization.objects.all().values(
         'logistic_process_id', 'efficiency_improvement', 'cost_reduction', 'processing_time_reduction'
     )
-    
+
     df_processes = pd.DataFrame(list(logistic_processes))
     df_transactions = pd.DataFrame(list(transactions))
     df_optimizations = pd.DataFrame(list(optimizations))
-    
+
+    # Convertir columnas a tipos numéricos
+    df_transactions['amount'] = pd.to_numeric(df_transactions['amount'], errors='coerce')
+    df_transactions['exchange_rate__rate'] = pd.to_numeric(df_transactions['exchange_rate__rate'], errors='coerce')
+    df_optimizations['efficiency_improvement'] = pd.to_numeric(df_optimizations['efficiency_improvement'], errors='coerce')
+    df_optimizations['cost_reduction'] = pd.to_numeric(df_optimizations['cost_reduction'], errors='coerce')
+    df_optimizations['processing_time_reduction'] = pd.to_numeric(df_optimizations['processing_time_reduction'], errors='coerce')
+
     # Merge the dataframes
     df = pd.merge(df_processes, df_transactions, left_on='id', right_on='logistic_process_id')
     df = pd.merge(df, df_optimizations, left_on='id', right_on='logistic_process_id')
-    
+
     return df
 
 def calculate_kpis(data):
