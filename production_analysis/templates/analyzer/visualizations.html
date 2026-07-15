@@ -1,0 +1,34 @@
+{% extends "analyzer/base.html" %}
+{% load static %} 
+{% block content %}
+<div class="container">
+    <h2 class="mb-4">Visualizaciones de Datos</h2>
+
+    <section class="mb-4">
+        <h3>Tendencias de Volumen de Cambio</h3>
+        {% comment %} <img src="data:image/png;base64,{{ images.exchange_volume_trends.png }}" alt="Tendencias de Volumen de Cambio" class="img-fluid"> {% endcomment %}
+        <img src="{% static 'analyzer/images/exchange_volume_trends.png'%}" alt="Tendencias de Volumen de Cambio" class="img-fluid">
+    </section>
+
+    <section class="mb-4">
+        <h3>Mapa de Calor de Eficiencia</h3>
+        <img src="{% static 'analyzer/images/efficiency_heatmap.png'%}" alt="Tendencias de Volumen de Cambio" class="img-fluid">
+    </section>
+
+    <section class="mb-4">
+        <h3>Desglose de Costos</h3>
+        <img src="{% static 'analyzer/images/cost_breakdown.png'%}" alt="Desglose de Costos" class="img-fluid">
+    </section>
+
+    <section class="mb-4">
+        <h3>Asignación Óptima de Recursos</h3>
+        <img src="{% static 'analyzer/images/resource_allocation.png'%}" alt="Asignación Óptima de Recursos" class="img-fluid">
+    </section>
+</div>
+
+{% comment %} <script src="https://cdn.plot.ly/plotly-latest.min.js"></script> {% endcomment %}
+<script>
+    // Aquí puedes renderizar gráficos interactivos de Plotly si es necesario
+    // Puedes usar los datos proporcionados desde la vista para renderizar gráficos interactivos
+</script>
+{% endblock %}

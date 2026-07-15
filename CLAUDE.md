@@ -42,7 +42,7 @@ production_analysis/
 - La DB requiere variables de entorno MySQL definidas antes de arrancar Django.
 - Las vistas de `analyzer` reutilizan los mismos scripts que `main.py`.
 
-## Sesión 2026-07-07 (claude/audit-modernize)
+## Auditoría de seguridad — sesión 2026-07-07 (claude/audit-modernize)
 Auditoría de seguridad aplicada vía patch (`active__finalprojectoppl-ia.patch`), repo git inicializado
 desde cero en esta sesión (no existía `.git` previo).
 
