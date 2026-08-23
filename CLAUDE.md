@@ -1,18 +1,27 @@
 # CLAUDE.md — FinalProjectOPPL_IA
 
-Sistema de IA generativa para optimizar los procesos operativos de la **Casa de Cambios Tromay**
-(predicción de tasas/demanda, asignación de personal, inventario de divisas, rutas de entrega).
-Docs y nombres en **español**.
+Proyecto académico (OPPL / IA): **demo web Django** para analizar y optimizar procesos operativos
+de la **Casa de Cambios Tromay**. Genera datos sintéticos, corre un ETL, aplica un optimizador
+numérico simple (`scipy.optimize.minimize`, SLSQP) de asignación de presupuesto y produce
+visualizaciones PNG/HTML. Docs y nombres en **español**.
+
+> **Alcance honesto:** la "IA generativa" (predicción de tasas/demanda, personal, rutas, GANs/RNN/
+> algoritmos genéticos con PyTorch) **no está implementada** — el modelo `GenerativeAI` es solo una
+> tabla con métricas sintéticas y la única optimización real es el `scipy.optimize`. Objetivo futuro.
 
 ## Stack
-- **Python 3.8+** · Django 5.1 (app web `analyzer`) + scripts de análisis/ML.
-- **ML/datos:** PyTorch, Pandas, NumPy, Scikit-learn (GANs, RNN, algoritmos genéticos).
-- **DB:** MySQL vía variables de entorno (`MYSQL_DATABASE`, `MYSQL_USER`, `MYSQL_PASSWORD`, `DB_HOST`).
-- **Visualización:** Matplotlib/Plotly → PNG y HTML.
+- **Python 3.8+** · Django (`requirements.txt`: ≥4.2, probado con 5.1; app web `analyzer`) + scripts de análisis.
+- **Datos/optimización:** pandas, numpy, scipy (SLSQP), django-pandas. (Sin PyTorch/scikit-learn.)
+- **DB:** MySQL vía variables de entorno (`MYSQL_DATABASE`, `MYSQL_USER`, `MYSQL_PASSWORD`, `DB_HOST`, `DB_PORT`).
+  ⚠️ `mysqlclient` **no** está en `requirements.txt`; instalarlo aparte.
+- **Visualización:** matplotlib, seaborn → PNG y HTML.
 
 ## Estructura
 ```
-main.py                          # Pipeline CLI: generación → ETL → eficiencia → viz → análisis
+main.py                          # Pipeline CLI: generación → ETL → eficiencia → viz → análisis (roto, ver Gotchas)
+requirements.txt                 # Dependencias reconstruidas de los imports (sin mysqlclient)
+TECH_DEBT.md                     # Baseline de deuda técnica (DEBT-015-1..4)
+.github/workflows/ci.yml         # CI GitHub Actions: compileall + manage.py check (Python 3.12)
 production_analysis/
   manage.py                      # Entrypoint Django
   production_analysis/settings.py# Config del proyecto Django (DB MySQL desde env)
@@ -27,10 +36,12 @@ production_analysis/
 ```
 
 ## Comandos
-- **Pipeline standalone:** `python main.py` (genera `raw_/processed_production_data.csv` + gráficos).
+- **Instalar deps:** `pip install -r requirements.txt` (+ `pip install mysqlclient` para la DB).
+- **Pipeline standalone:** `python main.py` (genera `raw_/processed_production_data.csv` + gráficos) — **hoy no corre**, ver Gotchas.
 - **Servidor web:** `cd production_analysis && python manage.py runserver`.
 - **Migraciones:** `python manage.py makemigrations && python manage.py migrate`.
-- **Tests:** `python manage.py test`.
+- **Tests:** `python manage.py test` (suite aún vacía — DEBT-015-3).
+- **CI local (lo que corre GitHub Actions):** `python -m compileall production_analysis main.py` y `python production_analysis/manage.py check`.
 
 ## Modelos clave (analyzer/models.py)
 `CurrencyExchangeHouse`, `Currency`, `ExchangeRate`, `ProcessType`, `LogisticProcess`,
@@ -41,6 +52,13 @@ production_analysis/
   `your_project_name.settings`; debe ser `production_analysis.settings` para correr standalone.
 - La DB requiere variables de entorno MySQL definidas antes de arrancar Django.
 - Las vistas de `analyzer` reutilizan los mismos scripts que `main.py`.
+
+## Baseline de deuda técnica — sesión 2026-07-28 (`codex/DEBT-015-baseline`)
+Commit `chore(oppl): baseline de deuda — CI + TECH_DEBT + requirements reconstruido [DEBT-015]`.
+Añadió `requirements.txt` (de los imports reales), `.github/workflows/ci.yml` (compileall + `manage.py
+check` en Python 3.12) y `TECH_DEBT.md`. Hallazgos catalogados: DEBT-015-1 requirements ausente
+(FIXED), DEBT-015-2 CI ausente (FIXED), DEBT-015-3 tests sin cobertura (DISCOVERED), DEBT-015-4
+artefactos PNG/HTML versionados (DISCOVERED). No se alteró lógica ni se borraron artefactos.
 
 ## Auditoría de seguridad — sesión 2026-07-07 (claude/audit-modernize)
 Auditoría de seguridad aplicada vía patch (`active__finalprojectoppl-ia.patch`), repo git inicializado
