@@ -51,7 +51,7 @@ def run_pipeline(args, database):
                 ).distinct()
             ]
             os.chdir(output)
-            generate_visualizations()
+            generate_visualizations(synthetic=True)
             analysis = perform_analysis()
         # All values are synthetic; statistics are descriptive, not measured AI performance.
         (output / "optimization.json").write_text(json.dumps(optimized, default=str))

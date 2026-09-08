@@ -17,34 +17,40 @@ def load_transaction_data():
     df['date'] = pd.to_datetime(df['date'])
     return df
 
-def monthly_optimization_trend(df):
+def monthly_optimization_trend(df, *, synthetic=False):
     monthly_optimizations = df.groupby(df['implementation_date'].dt.to_period('M'))['efficiency_improvement'].mean().reset_index()
     monthly_optimizations['implementation_date'] = monthly_optimizations['implementation_date'].dt.to_timestamp()
 
     plt.figure(figsize=(12, 6))
-    plt.plot(monthly_optimizations['implementation_date'], monthly_optimizations['efficiency_improvement'])
-    plt.title('Monthly Average Optimization Efficiency Improvement Trend')
+    plt.plot(monthly_optimizations['implementation_date'], monthly_optimizations['efficiency_improvement'], marker='o')
+    plt.title('Monthly Average Fixture Efficiency Improvement' if synthetic else 'Monthly Average Efficiency Improvement')
+    if len(monthly_optimizations) == 1:
+        plt.title('One monthly observation — no trend estimate')
+        plt.xticks(monthly_optimizations['implementation_date'], rotation=45)
     plt.xlabel('Month')
     plt.ylabel('Average Efficiency Improvement (%)')
     plt.xticks(rotation=45)
-    plt.tight_layout()
+    if synthetic:
+        plt.suptitle('SYNTHETIC FIXTURES — not measured results or market data', fontsize=10)
+    plt.tight_layout(rect=(0, 0, 1, 0.94) if synthetic else (0, 0, 1, 1))
     plt.savefig('monthly_optimization_trend.png')
     plt.close()
 
-def top_processes_by_cost_reduction(df):
+def top_processes_by_cost_reduction(df, *, synthetic=False):
     top_processes = df.groupby('logistic_process__process_type__name')['cost_reduction'].mean().sort_values(ascending=False).head(10)
 
     plt.figure(figsize=(12, 6))
-    sns.barplot(x=top_processes.index, y=top_processes.values)
-    plt.title('Top 10 Process Types by Average Cost Reduction')
-    plt.xlabel('Process Type')
-    plt.ylabel('Average Cost Reduction (%)')
-    plt.xticks(rotation=90)
-    plt.tight_layout()
+    sns.barplot(x=top_processes.values, y=top_processes.index)
+    plt.title(f'Top {len(top_processes)} Process Types by Average Cost Reduction')
+    plt.ylabel('Process Type')
+    plt.xlabel('Average Cost Reduction (%)')
+    if synthetic:
+        plt.suptitle('SYNTHETIC FIXTURES — not measured results or market data', fontsize=10)
+    plt.tight_layout(rect=(0, 0, 1, 0.94) if synthetic else (0, 0, 1, 1))
     plt.savefig('top_processes_by_cost_reduction.png')
     plt.close()
 
-def outcome_distribution():
+def outcome_distribution(*, synthetic=False):
     outcome_data = Outcome.objects.all()
     outcome_df = pd.DataFrame(list(outcome_data.values('impact')))
     outcome_counts = outcome_df['impact'].value_counts()
@@ -53,46 +59,54 @@ def outcome_distribution():
     outcome_counts.plot(kind='pie', autopct='%1.1f%%')
     plt.title('Distribution of Outcome Impact')
     plt.ylabel('')
-    plt.tight_layout()
+    if synthetic:
+        plt.suptitle('SYNTHETIC FIXTURES — not measured results or market data', fontsize=10)
+    plt.tight_layout(rect=(0, 0, 1, 0.94) if synthetic else (0, 0, 1, 1))
     plt.savefig('outcome_distribution.png')
     plt.close()
 
-def transaction_volume_by_currency(df):
+def transaction_volume_by_currency(df, *, synthetic=False):
     volume_by_currency = df.groupby('from_currency__code')['amount'].sum().sort_values(ascending=False)
 
     plt.figure(figsize=(12, 6))
     sns.barplot(x=volume_by_currency.index, y=volume_by_currency.values)
-    plt.title('Transaction Volume by Currency')
+    plt.title('Transaction Amounts by Source Currency (not converted)')
     plt.xlabel('Currency')
-    plt.ylabel('Total Transaction Amount')
+    plt.ylabel('Amount in each source currency’s own units')
     plt.xticks(rotation=45)
-    plt.tight_layout()
+    if synthetic:
+        plt.suptitle('SYNTHETIC FIXTURES — not measured results or market data', fontsize=10)
+    plt.tight_layout(rect=(0, 0, 1, 0.94) if synthetic else (0, 0, 1, 1))
     plt.savefig('transaction_volume_by_currency.png')
     plt.close()
 
-def exchange_rate_trend():
+def exchange_rate_trend(*, synthetic=False):
     exchange_rate_data = ExchangeRate.objects.filter(from_currency__code='USD', to_currency__code='EUR').order_by('date')
     exchange_rate_df = pd.DataFrame(list(exchange_rate_data.values('date', 'rate')))
 
     plt.figure(figsize=(12, 6))
-    plt.plot(exchange_rate_df['date'], exchange_rate_df['rate'])
-    plt.title('USD/EUR Exchange Rate Trend')
+    plt.plot(exchange_rate_df['date'], exchange_rate_df['rate'], marker='o')
+    plt.title('USD to EUR Exchange Rates' if len(exchange_rate_df) > 1 else 'USD to EUR: one observation — no trend estimate')
     plt.xlabel('Date')
-    plt.ylabel('Exchange Rate')
+    if len(exchange_rate_df) == 1:
+        plt.xticks(exchange_rate_df['date'], rotation=45)
+    plt.ylabel('EUR per 1 USD')
     plt.xticks(rotation=45)
-    plt.tight_layout()
+    if synthetic:
+        plt.suptitle('SYNTHETIC FIXTURES — not measured results or market data', fontsize=10)
+    plt.tight_layout(rect=(0, 0, 1, 0.94) if synthetic else (0, 0, 1, 1))
     plt.savefig('usd_eur_exchange_rate_trend.png')
     plt.close()
 
-def generate_visualizations():
+def generate_visualizations(*, synthetic=False):
     optimization_df = load_optimization_data()
     transaction_df = load_transaction_data()
 
-    monthly_optimization_trend(optimization_df)
-    top_processes_by_cost_reduction(optimization_df)
-    outcome_distribution()
-    transaction_volume_by_currency(transaction_df)
-    exchange_rate_trend()
+    monthly_optimization_trend(optimization_df, synthetic=synthetic)
+    top_processes_by_cost_reduction(optimization_df, synthetic=synthetic)
+    outcome_distribution(synthetic=synthetic)
+    transaction_volume_by_currency(transaction_df, synthetic=synthetic)
+    exchange_rate_trend(synthetic=synthetic)
 
     print("Visualizations generated and saved as PNG files.")
 
