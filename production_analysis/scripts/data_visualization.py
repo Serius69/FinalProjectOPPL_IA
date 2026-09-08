@@ -2,18 +2,18 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-from django_pandas.io import read_frame
+
 from analyzer.models import LogisticProcess, Optimization, Outcome, Transaction, ExchangeRate
 
 def load_optimization_data():
     optimization_data = Optimization.objects.select_related('logistic_process__process_type').prefetch_related('outcomes').all()
-    df = read_frame(optimization_data)
+    df = pd.DataFrame(list(optimization_data.values('implementation_date', 'efficiency_improvement', 'cost_reduction', 'logistic_process__process_type__name')))
     df['implementation_date'] = pd.to_datetime(df['implementation_date'])
     return df
 
 def load_transaction_data():
     transaction_data = Transaction.objects.select_related('logistic_process__process_type', 'from_currency', 'to_currency', 'exchange_rate').all()
-    df = read_frame(transaction_data)
+    df = pd.DataFrame(list(transaction_data.values('date', 'amount', 'from_currency__code')))
     df['date'] = pd.to_datetime(df['date'])
     return df
 
@@ -46,7 +46,7 @@ def top_processes_by_cost_reduction(df):
 
 def outcome_distribution():
     outcome_data = Outcome.objects.all()
-    outcome_df = read_frame(outcome_data)
+    outcome_df = pd.DataFrame(list(outcome_data.values('impact')))
     outcome_counts = outcome_df['impact'].value_counts()
 
     plt.figure(figsize=(8, 6))
@@ -72,8 +72,8 @@ def transaction_volume_by_currency(df):
 
 def exchange_rate_trend():
     exchange_rate_data = ExchangeRate.objects.filter(from_currency__code='USD', to_currency__code='EUR').order_by('date')
-    exchange_rate_df = read_frame(exchange_rate_data)
-    
+    exchange_rate_df = pd.DataFrame(list(exchange_rate_data.values('date', 'rate')))
+
     plt.figure(figsize=(12, 6))
     plt.plot(exchange_rate_df['date'], exchange_rate_df['rate'])
     plt.title('USD/EUR Exchange Rate Trend')
@@ -87,13 +87,13 @@ def exchange_rate_trend():
 def generate_visualizations():
     optimization_df = load_optimization_data()
     transaction_df = load_transaction_data()
-    
+
     monthly_optimization_trend(optimization_df)
     top_processes_by_cost_reduction(optimization_df)
     outcome_distribution()
     transaction_volume_by_currency(transaction_df)
     exchange_rate_trend()
-    
+
     print("Visualizations generated and saved as PNG files.")
 
 if __name__ == "__main__":

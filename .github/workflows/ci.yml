@@ -35,3 +35,14 @@ jobs:
         run: pip install -r requirements.txt
       - name: Check Django configuration
         run: python production_analysis/manage.py check
+
+  synthetic-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install Django==5.2.17 numpy==1.26.4 pandas==2.2.2 scipy==1.13.0 matplotlib==3.9.2 seaborn==0.13.2
+      - run: python -m unittest discover -s tests -v

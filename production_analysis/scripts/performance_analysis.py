@@ -78,7 +78,7 @@ def compare_currencies(data, currency1, currency2):
     """
     currency1_data = data[data['from_currency__code'] == currency1]['amount']
     currency2_data = data[data['from_currency__code'] == currency2]['amount']
-    
+
     t_stat, p_value = stats.ttest_ind(currency1_data, currency2_data)
     return {
         'moneda1_volumen_medio': currency1_data.mean(),
@@ -102,6 +102,8 @@ def analyze_trends(data):
     daily_volume = data.groupby(data['date'].dt.to_period('D'))['amount'].sum()
     daily_rate = data.groupby(data['date'].dt.to_period('D'))['exchange_rate__rate'].mean()
 
+    if len(daily_volume) < 2:
+        return {'volumen_tendencia': None, 'tasa_cambio_tendencia': None}
     volume_trend = np.polyfit(range(len(daily_volume)), daily_volume, 1)
     rate_trend = np.polyfit(range(len(daily_rate)), daily_rate, 1)
 
@@ -156,6 +158,9 @@ def print_analysis_results(results):
 
     print("\nTendencias:")
     trends = results['tendencias']
+    if trends['volumen_tendencia'] is None:
+        print('  Tendencias no estimables: se requieren al menos dos días.')
+        return
     print(f"  Tendencia de volumen diario: {trends['volumen_tendencia']:.2f} unidades/día")
     print(f"  Tendencia de tasa de cambio: {trends['tasa_cambio_tendencia']:.4f} unidades/día")
 

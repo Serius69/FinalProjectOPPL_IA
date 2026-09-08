@@ -18,7 +18,7 @@ visualizaciones PNG/HTML. Docs y nombres en **español**.
 
 ## Estructura
 ```
-main.py                          # Pipeline CLI: generación → ETL → eficiencia → viz → análisis (roto, ver Gotchas)
+main.py                          # Pipeline CLI: generación → ETL → eficiencia → viz → análisis (SQLite sintética aislada)
 requirements.txt                 # Dependencias reconstruidas de los imports (sin mysqlclient)
 TECH_DEBT.md                     # Baseline de deuda técnica (DEBT-015-1..4)
 .github/workflows/ci.yml         # CI GitHub Actions: compileall + manage.py check (Python 3.12)
@@ -28,7 +28,7 @@ production_analysis/
   analyzer/                      # App Django: models, views, urls, migrations, templates
   scripts/                       # Lógica de negocio (usable standalone o desde views)
     data_generator.py            # Genera datos sintéticos en la DB
-    etl_process.py               # ETL raw → processed CSV
+    etl_process.py               # ETL ORM por clave primaria
     efficiency_improvement.py    # Optimización de eficiencia (con presupuesto)
     performance_analysis.py      # Análisis de desempeño
     data_visualization.py        # Gráficos PNG/HTML
@@ -37,10 +37,9 @@ production_analysis/
 
 ## Comandos
 - **Instalar deps:** `pip install -r requirements.txt` (+ `pip install mysqlclient` para la DB).
-- **Pipeline standalone:** `python main.py` (genera `raw_/processed_production_data.csv` + gráficos) — **hoy no corre**, ver Gotchas.
 - **Servidor web:** `cd production_analysis && python manage.py runserver`.
 - **Migraciones:** `python manage.py makemigrations && python manage.py migrate`.
-- **Tests:** `python manage.py test` (suite aún vacía — DEBT-015-3).
+- **Tests:** `python -m unittest discover -s tests -v` (seis pruebas sintéticas CLI; suite web pendiente).
 - **CI local (lo que corre GitHub Actions):** `python -m compileall production_analysis main.py` y `python production_analysis/manage.py check`.
 
 ## Modelos clave (analyzer/models.py)
@@ -48,8 +47,7 @@ production_analysis/
 `Transaction`, `Optimization`, `Outcome`, `Report`, `GenerativeAI`.
 
 ## Gotchas
-- Los scripts hacen `django.setup()` con `DJANGO_SETTINGS_MODULE` — algunos aún referencian
-  `your_project_name.settings`; debe ser `production_analysis.settings` para correr standalone.
+- El generador ya no elige settings ni inicializa Django al importar. `synthetic_smoke.py` configura SQLite nueva de forma explícita.
 - La DB requiere variables de entorno MySQL definidas antes de arrancar Django.
 - Las vistas de `analyzer` reutilizan los mismos scripts que `main.py`.
 
@@ -78,3 +76,22 @@ desde cero en esta sesión (no existía `.git` previo).
   hasta reemplazarlos por `<form method="post">{% csrf_token %}...</form>` y hasta que exista un
   flujo de login (no hay `LOGIN_URL` configurado ni `/accounts/login/` registrado en `urls.py`).
 - Sin Docker en el repo. `.gitignore` ya cubría `.env`/`venv`/`__pycache__` correctamente.
+
+## Smoke sintético acotado2026-09-08
+
+`python synthetic_smoke.py --database NUEVA.sqlite3` prueba solo generación sintética aislada; exige salida inexistente, no carga MySQL/dotenv y no crea registros ficticios de modelos entrenados.
+
+## Pipeline sintético reparado (2026-09-08)
+
+`python main.py --database /ruta/nueva/pipeline.sqlite3 --records 40` ejecuta
+la generación → ETL ORM → optimización SciPy → cinco PNG → análisis descriptivo.
+Requiere Django, pandas, NumPy, SciPy, matplotlib y seaborn; usa SQLite nueva,
+ignora settings externos y rechaza bases o directorios de artefactos existentes.
+`synthetic_smoke.py` conserva el smoke de generación independiente.
+
+Seis pruebas con `python -m unittest discover -s tests -v` cubren integridad,
+transacciones del mismo día, óptimo frente a solución analítica, gráficos PNG,
+no sobrescritura y parámetros inválidos. Validado con Python 3.12 y Django 5.2.17.
+Los resultados son fixtures sintéticos, no evidencia de desempeño económico ni de IA.
+No se entrenan modelos, no se presenta una entrega académica y no se valida el flujo web.
+Los formularios POST/login web siguen pendientes. Un único día no permite estimar tendencia.

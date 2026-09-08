@@ -5,7 +5,7 @@ from analyzer.models import LogisticProcess, ExchangeRate, Transaction
 def load_data():
     """
     Carga los datos de procesos logísticos desde la base de datos.
-    
+
     Returns:
     QuerySet: Conjunto de datos de procesos logísticos.
     """
@@ -34,7 +34,7 @@ def exchange_cost(x, exchange_rate):
     Returns:
     float: Costo total.
     """
-    return x[0] * exchange_rate.rate
+    return x[0] * float(exchange_rate.rate)
 
 def exchange_volume(x, efficiency_improvement):
     """
@@ -63,10 +63,10 @@ def optimize_exchange(logistic_process_id, budget, efficiency_improvement):
     """
     # Obtener el proceso logístico
     logistic_process = LogisticProcess.objects.get(id=logistic_process_id)
-    
+
     # Obtener la primera transacción asociada para obtener el tipo de cambio
     transaction = logistic_process.transactions.first()
-    
+
     if not transaction:
         raise ValueError("No transactions found for the given logistic process.")
 
@@ -92,6 +92,8 @@ def optimize_exchange(logistic_process_id, budget, efficiency_improvement):
 
     result = minimize(objective, x0, method='SLSQP', bounds=bounds, constraints=cons)
 
+    if not result.success or constraint(result.x) < -0.01:
+        raise ValueError(f"Optimization failed: {result.message}")
     return result.x, -result.fun
 
 def improve_efficiency(logistic_process_id, budget, efficiency_improvement):

@@ -1,19 +1,23 @@
 # data_generator.py
-import os
-import django
 import random
-from datetime import datetime, timedelta
-import pandas as pd
-import numpy as np
+from datetime import date, datetime, timedelta
 
-# Configurar el entorno de Django
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "your_project_name.settings")
-django.setup()
+# Django is configured by the web entrypoint or synthetic_smoke.py, never here.
+if __name__ == "__main__":
+    raise SystemExit("Use synthetic_smoke.py --database NEW.sqlite3 for isolated synthetic data")
 
 from analyzer.models import (
     CurrencyExchangeHouse, Currency, ExchangeRate, ProcessType,
     LogisticProcess, Transaction, Optimization, Outcome, Report, GenerativeAI
 )
+
+def inclusive_dates(start_date, end_date):
+    start = date.fromisoformat(start_date) if isinstance(start_date, str) else start_date
+    end = date.fromisoformat(end_date) if isinstance(end_date, str) else end_date
+    if end < start:
+        raise ValueError("end_date must not precede start_date")
+    return [start + timedelta(days=offset) for offset in range((end - start).days + 1)]
+
 
 def create_currency_exchange_house():
     return CurrencyExchangeHouse.objects.create(
@@ -33,8 +37,8 @@ def create_currencies():
 
 def create_exchange_rates(start_date, end_date):
     currencies = Currency.objects.all()
-    date_range = pd.date_range(start=start_date, end=end_date)
-    
+    date_range = inclusive_dates(start_date, end_date)
+
     for date in date_range:
         for from_currency in currencies:
             for to_currency in currencies:
@@ -74,22 +78,22 @@ def create_logistic_processes(exchange_house):
 def generate_transactions(num_records, start_date, end_date):
     processes = LogisticProcess.objects.all()
     currencies = Currency.objects.all()
-    date_range = pd.date_range(start=start_date, end=end_date)
+    date_range = inclusive_dates(start_date, end_date)
 
     for _ in range(num_records):
         process = random.choice(processes)
         from_currency = random.choice(currencies)
         to_currency = random.choice([c for c in currencies if c != from_currency])
         date = random.choice(date_range)
-        
+
         exchange_rate = ExchangeRate.objects.get(
             from_currency=from_currency,
             to_currency=to_currency,
             date=date
         )
-        
+
         amount = round(random.uniform(100, 10000), 2)
-        
+
         Transaction.objects.create(
             logistic_process=process,
             date=date,
@@ -151,54 +155,48 @@ def create_generative_ai_models():
         )
         ai_model.used_in_processes.set(random.sample(list(processes), k=random.randint(2, len(processes))))
 
-def main(num_records, start_date, end_date):
+def main(num_records, start_date, end_date, *, include_demo_ai=True):
     print("Starting data generation...")
-    
+
     # Crear una única casa de cambios
     exchange_house = create_currency_exchange_house()
     print("Currency Exchange House created.")
-    
+
     # Crear monedas
     create_currencies()
     print("Currencies created.")
-    
+
     # Crear tasas de cambio
     create_exchange_rates(start_date, end_date)
     print("Exchange rates created.")
-    
+
     # Crear tipos de procesos
     create_process_types()
     print("Process types created.")
-    
+
     # Crear procesos logísticos para la casa de cambios
     create_logistic_processes(exchange_house)
     print("Logistic processes created.")
-    
+
     # Generar transacciones
     generate_transactions(num_records, start_date, end_date)
     print(f"{num_records} transactions generated.")
-    
+
     # Crear optimizaciones
     create_optimizations()
     print("Optimizations created.")
-    
+
     # Crear resultados
     create_outcomes()
     print("Outcomes created.")
-    
+
     # Crear informes
     create_reports()
     print("Reports created.")
-    
-    # Crear modelos de IA generativa
-    create_generative_ai_models()
-    print("Generative AI models created.")
-    
-    print("Data generation completed successfully.")
 
-if __name__ == "__main__":
-    num_records = 1000  # Número de transacciones a generar
-    start_date = "2023-01-01"  # Fecha de inicio
-    end_date = "2023-12-31"  # Fecha de finalización
-    
-    main(num_records, start_date, end_date)
+    # Crear modelos de IA generativa
+    if include_demo_ai:
+        create_generative_ai_models()
+        print("Synthetic AI demonstration records created; no training performed.")
+
+    print("Data generation completed successfully.")

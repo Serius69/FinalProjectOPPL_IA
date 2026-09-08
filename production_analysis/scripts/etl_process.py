@@ -10,7 +10,7 @@ def extract_data():
             'id', 'currency_exchange_house__name', 'process_type__name', 'start_date', 'end_date', 'status'
         )
         transactions = Transaction.objects.select_related('from_currency', 'to_currency', 'exchange_rate').values(
-            'logistic_process_id', 'date', 'from_currency__code', 'to_currency__code', 'amount', 'exchange_rate__rate'
+            'id', 'logistic_process_id', 'date', 'from_currency_id', 'to_currency_id', 'exchange_rate_id', 'amount', 'exchange_rate__rate'
         )
         df_processes = pd.DataFrame(list(data))
         df_transactions = pd.DataFrame(list(transactions))
@@ -27,7 +27,7 @@ def transform_data(df_processes, df_transactions):
     # Eliminar filas con fechas NaT o aplicar un valor predeterminado
     df_processes['duration'] = (df_processes['end_date'] - df_processes['start_date']).dt.days
     df_processes['duration'] = df_processes['duration'].fillna(-1)  # Rellenar NaT con un valor predeterminado
-    
+
     # Convertir la fecha de transacciones también
     df_transactions['date'] = pd.to_datetime(df_transactions['date'], errors='coerce')
 
@@ -37,7 +37,7 @@ def transform_data(df_processes, df_transactions):
         'exchange_rate__rate': 'mean'
     })
     transaction_metrics.columns = ['total_amount', 'transaction_count', 'avg_exchange_rate']
-    
+
     # Unir las métricas de transacciones con los procesos
     df_processes = df_processes.merge(transaction_metrics, left_on='id', right_index=True, how='left')
 
@@ -53,7 +53,7 @@ def load_data(df_processes, df_transactions):
             process = LogisticProcess.objects.filter(id=process_id).first()
             if process:
                 process.start_date = row['start_date']
-                process.end_date = row['end_date']
+                process.end_date = None if pd.isna(row['end_date']) else row['end_date'].date()
                 process.status = row['status']
                 process.save()
             else:
@@ -61,22 +61,14 @@ def load_data(df_processes, df_transactions):
         else:
             print("Invalid data: Missing ID for process.")
 
-    # Actualizar o crear nuevas transacciones
+    # Preserve primary keys: several legitimate transactions may share process/date.
     for _, row in df_transactions.iterrows():
-        transaction, created = Transaction.objects.update_or_create(
-            logistic_process_id=row['logistic_process_id'],
-            date=row['date'],
-            defaults={
-                'from_currency': ExchangeRate.objects.get(code=row['from_currency__code']),
-                'to_currency': ExchangeRate.objects.get(code=row['to_currency__code']),
-                'amount': row['amount'],
-                'exchange_rate': ExchangeRate.objects.get(rate=row['exchange_rate__rate'])
-            }
+        Transaction.objects.filter(pk=int(row['id'])).update(
+            date=row['date'].date(), amount=row['amount'],
+            from_currency_id=int(row['from_currency_id']),
+            to_currency_id=int(row['to_currency_id']),
+            exchange_rate_id=int(row['exchange_rate_id']),
         )
-        if created:
-            print(f"New transaction created for process ID {row['logistic_process_id']}")
-        else:
-            print(f"Transaction updated for process ID {row['logistic_process_id']}")
 
 def etl_process():
     raw_processes, raw_transactions = extract_data()
